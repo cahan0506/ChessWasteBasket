@@ -1,8 +1,8 @@
-﻿$psi = New-Object System.Diagnostics.ProcessStartInfo;
-$psi.FileName = "C:\Users\WDAGUtilityAccount\Downloads\stockfish_15.1_win_x64_avx2\stockfish-windows-2022-x86-64-avx2.exe"; #CHANGE process file
-$psi.UseShellExecute = $false;
-$psi.RedirectStandardInput = $true;
-$psi.RedirectStandardOutput = $true;
+﻿$psi = New-Object System.Diagnostics.ProcessStartInfo
+$psi.FileName = "C:\Users\WDAGUtilityAccount\Downloads\stockfish_15.1_win_x64_avx2\stockfish-windows-2022-x86-64-avx2.exe" #CHANGE process file
+$psi.UseShellExecute = $false
+$psi.RedirectStandardInput = $true
+$psi.RedirectStandardOutput = $true
 
 $uciPositions = @(
   "position startpos moves d2d4",
@@ -13,6 +13,7 @@ $movetime = 1000
 $multipv = 3
 
 $global:lastMultiPV1 = ""
+$global:lastBestMove = ""
 
 function readUCIInput($p)
 {
@@ -25,13 +26,16 @@ function readUCIInput($p)
 
   while ($true) {
     if ($task.IsCompleted) {
-      $task.Result
+      # $task.Result
 
       if ($task.Result.Contains("multipv 1 score cp ")) {
         $global:lastMultiPV1 = $task.Result
       }
 
       if (@("uciok", "readyok", "Checkers:", "bestmove").Contains($task.Result.Split(" ")[0])) {
+        if (@("bestmove").Contains($task.Result.Split(" ")[0])) {
+          $global:lastBestMove = $task.Result
+        }
         break
       } else {
         $task = $p.StandardOutput.ReadLineAsync();
@@ -63,11 +67,14 @@ $p.StandardInput.writeLine("ucinewgame")
 
 foreach ($currPosition in $uciPositions) {
   $p.StandardInput.WriteLine($currPosition);
-  $p.StandardInput.WriteLine("d");
-  readUCIInput($p)
+  #$p.StandardInput.WriteLine("d");
+  #readUCIInput($p)
   $p.StandardInput.WriteLine("go movetime " + ($movetime));
   readUCIInput($p)
+  $currPosition
   $global:lastMultiPV1
+  $global:lastBestMove
+  $global:lastMultiPV1 -replace '(.*)\scp\s(-?\d*)(.*)', 'EVALCP $2'
 }
 
 $p.StandardInput.WriteLine("quit");
